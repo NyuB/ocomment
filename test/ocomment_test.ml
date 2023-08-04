@@ -6,8 +6,10 @@ let testable_ocomment =
       Format.pp_print_string
         pp
         (Printf.sprintf
-           " { header_line_number = %d; hash = '%s'; lines = [ %s ] }"
+           " { header_line_number = %d; footer_line_number = %d; hash = '%s'; lines = [ \
+            %s ] }"
            o.header_line_number
+           o.footer_line_number
            o.hash
            (String.concat "; " (List.map (fun s -> "'" ^ s ^ "'") o.lines))))
     ( = )
@@ -62,7 +64,7 @@ let example_line_break_matter () =
 
 let example_no_comments () =
   let lines = [ "name = 'Bob'"; "age = 22"; "print(name, 'is', age, 'years')" ]
-  and settings = { prefix = "# ocm start"; suffix = "# ocm end" } in
+  and settings = { start_prefix = "# ocm start"; end_prefix = "# ocm end" } in
   Alcotest.(check (list testable_ocomment))
     "Expected empty ocomment list for lines without ocomment"
     []
@@ -77,10 +79,15 @@ let example_one_comment_no_hash () =
     ; "# ocm end"
     ; "print(name, 'is', age, 'years')"
     ]
-  and settings = { prefix = "# ocm start"; suffix = "# ocm end" } in
+  and settings = { start_prefix = "# ocm start"; end_prefix = "# ocm end" } in
   Alcotest.(check (list testable_ocomment))
     "Expected one ocomment"
-    [ { header_line_number = 0; lines = [ "name = 'Bob'"; "age = 22" ]; hash = "" } ]
+    [ { header_line_number = 0
+      ; footer_line_number = 3
+      ; lines = [ "name = 'Bob'"; "age = 22" ]
+      ; hash = ""
+      }
+    ]
     (scan_ocomments settings lines)
 ;;
 
@@ -92,10 +99,11 @@ let example_one_comment_with_hash () =
     ; "# ocm end MD5_STRING"
     ; "print(name, 'is', age, 'years')"
     ]
-  and settings = { prefix = "# ocm start"; suffix = "# ocm end" } in
+  and settings = { start_prefix = "# ocm start"; end_prefix = "# ocm end" } in
   Alcotest.(check (list testable_ocomment))
     "Expected one ocomment"
     [ { header_line_number = 0
+      ; footer_line_number = 3
       ; lines = [ "name = 'Bob'"; "age = 22" ]
       ; hash = "MD5_STRING"
       }

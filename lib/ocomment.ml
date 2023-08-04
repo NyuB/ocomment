@@ -1,6 +1,6 @@
 type ocomment_settings =
-  { prefix : string
-  ; suffix : string
+  { start_prefix : string
+  ; end_prefix : string
   }
 
 type hash = string
@@ -16,6 +16,7 @@ type validation =
 
 type ocomment =
   { header_line_number : int
+  ; footer_line_number : int
   ; lines : string list
   ; hash : hash
   }
@@ -29,32 +30,34 @@ let hash_of_footer footer_prefix footer =
 ;;
 
 type scan =
-  | Lines of (ocomment list * string list)
-  | Comments of ocomment list
+  | Lines of (ocomment list * string list * int)
+  | Comments of ocomment list * int
 
 let scan_ocomments (settings : ocomment_settings) (lines : string list) : ocomment list =
   let scan =
     List.fold_left
       (fun acc line ->
         match acc, line with
-        | Comments l, header
-          when String.starts_with ~prefix:settings.prefix (String.trim header) ->
-          Lines (l, [])
-        | Comments l, _ -> Comments l
-        | Lines (ol, ll), footer
-          when String.starts_with ~prefix:settings.suffix (String.trim footer) ->
+        | Comments (l, nb), header
+          when String.starts_with ~prefix:settings.start_prefix (String.trim header) ->
+          Lines (l, [], nb + 1)
+        | Comments (l, nb), _ -> Comments (l, nb + 1)
+        | Lines (ol, ll, nb), footer
+          when String.starts_with ~prefix:settings.end_prefix (String.trim footer) ->
           Comments
-            ({ header_line_number = 0
-             ; hash = hash_of_footer settings.suffix footer
-             ; lines = List.rev ll
-             }
-             :: ol)
-        | Lines (ol, ll), l -> Lines (ol, l :: ll))
-      (Comments [])
+            ( { header_line_number = 0
+              ; footer_line_number = nb
+              ; hash = hash_of_footer settings.end_prefix footer
+              ; lines = List.rev ll
+              }
+              :: ol
+            , nb + 1 )
+        | Lines (ol, ll, nb), l -> Lines (ol, l :: ll, nb + 1))
+      (Comments ([], 0))
       lines
   in
   match scan with
-  | Lines (ol, _) | Comments ol -> ol
+  | Lines (ol, _, _) | Comments (ol, _) -> ol
 ;;
 
 let valid_lines lines hash =
