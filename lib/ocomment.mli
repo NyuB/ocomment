@@ -23,3 +23,4 @@ type ocomment =
 
 val scan_ocomments : ocomment_settings -> string list -> ocomment list
 val valid_lines : string list -> string -> validation
+val correction : ocomment_settings -> string list -> string list

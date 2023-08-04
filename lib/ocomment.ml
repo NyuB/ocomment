@@ -83,3 +83,108 @@ let valid_lines lines hash =
   let actual = Digest.string all_lines |> Digest.to_hex in
   if String.equal actual hash then Valid else Invalid { actual; current = hash }
 ;;
+
+let before line prefix =
+  let index = ref 0 in
+  let prefix_len = String.length prefix in
+  while not (String.equal (String.sub line !index prefix_len) prefix) do
+    index := !index + 1
+  done;
+  String.sub line 0 !index
+;;
+
+let correction settings lines =
+  let ocomments = scan_ocomments settings lines in
+  let corrections = List.map (fun o -> o, valid_lines o.lines o.hash) ocomments in
+  let mutable_corrected_lines = Array.of_list lines in
+  List.iter
+    (fun (o, v) ->
+      match v with
+      | Valid -> ()
+      | Invalid { actual; _ } ->
+        let current_line = Array.get mutable_corrected_lines o.footer_line_number in
+        Array.set
+          mutable_corrected_lines
+          o.footer_line_number
+          (before current_line settings.end_prefix ^ settings.end_prefix ^ " " ^ actual))
+    corrections;
+  Array.to_list mutable_corrected_lines
+;;
+
+module Test = struct
+  let lines_of s = String.split_on_char '\n' s
+  let print_lines l = List.iter print_endline l
+
+  let%expect_test _ =
+    let lines =
+      lines_of
+        {|
+    class Example {
+      public static int sum(int a; int b) {
+        // ocm start
+        // Complicated operation description
+        return a + b;
+        // ocm end
+      }
+    }
+  |}
+    in
+    let corrected =
+      correction { start_prefix = "// ocm start"; end_prefix = "// ocm end" } lines
+    in
+    print_lines corrected;
+    [%expect
+      {|
+    class Example {
+      public static int sum(int a; int b) {
+        // ocm start
+        // Complicated operation description
+        return a + b;
+        // ocm end 259ded6fc990a61e7b65df8f4644e760
+      }
+    } |}]
+  ;;
+
+  let%expect_test _ =
+    let lines =
+      lines_of
+        {|
+  import sys
+
+  def split_commas(s: str) -> 'list[str]':
+      return s.split(',')
+  """ ocm >>
+  Split each argument by commas and display items separated by spaces on a separate line
+  Replace blank element with (...) in case of starting or ending comma
+  """
+  def main(args: 'list[str]') -> None:
+      for a in args:
+          print([e if e != "" else "(...)" for e in split_commas(a)])
+  # ocm <<
+  
+  if __name__ == "__main__":
+    main(sys.argv[1:])
+  |}
+    in
+    let corrected =
+      correction { start_prefix = {|""" ocm >>|}; end_prefix = {|# ocm <<|} } lines
+    in
+    print_lines corrected;
+    [%expect {|
+      import sys
+
+      def split_commas(s: str) -> 'list[str]':
+          return s.split(',')
+      """ ocm >>
+      Split each argument by commas and display items separated by spaces on a separate line
+      Replace blank element with (...) in case of starting or ending comma
+      """
+      def main(args: 'list[str]') -> None:
+          for a in args:
+              print([e if e != "" else "(...)" for e in split_commas(a)])
+      # ocm << 0e0dfbf4eca5a8f86fca15f7909b3a24
+
+      if __name__ == "__main__":
+        main(sys.argv[1:]) |}]
+  ;;
+end
