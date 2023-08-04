@@ -131,6 +131,28 @@ let example_one_comment_starting_mid_file () =
     (scan_ocomments settings lines)
 ;;
 
+let document_swallow_nested_comment () =
+  let lines =
+    [ "name = 'Bob'"
+    ; "# ocm start"
+    ; "age = 22"
+    ; "# ocm start"
+    ; "# ocm end MD5_STRING"
+    ; "# ocm end IGNORED"
+    ; "print(name, 'is', age, 'years')"
+    ]
+  and settings = { start_prefix = "# ocm start"; end_prefix = "# ocm end" } in
+  Alcotest.(check (list testable_ocomment))
+    "Expected one ocomment"
+    [ { header_line_number = 1
+      ; footer_line_number = 4
+      ; lines = [ "age = 22"; "# ocm start" ]
+      ; hash = "MD5_STRING"
+      }
+    ]
+    (scan_ocomments settings lines)
+;;
+
 let () =
   Alcotest.run
     "Ocomment"
@@ -144,5 +166,7 @@ let () =
         ; "One comment with hash", `Quick, example_one_comment_with_hash
         ; "Comment starting mid file", `Quick, example_one_comment_starting_mid_file
         ] )
+    ; ( "Document unexpected behaviour"
+      , [ "Swallow nested comment", `Quick, document_swallow_nested_comment ] )
     ]
 ;;
