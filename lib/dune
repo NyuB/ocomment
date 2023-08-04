@@ -1,0 +1,5 @@
+(library
+ (name ocomment)
+ (inline_tests)
+ (preprocess
+  (pps ppx_expect)))

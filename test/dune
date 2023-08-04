@@ -1,0 +1,3 @@
+(tests
+ (names ocomment_test)
+ (libraries alcotest ocomment))
