@@ -30,8 +30,32 @@ let hash_of_footer footer_prefix footer =
 ;;
 
 type scan =
-  | Lines of (ocomment list * string list * int)
+  | Lines of (ocomment list * ocomment * int)
   | Comments of ocomment list * int
+
+let add_line_to_current_comment ol c nb l =
+  Lines (ol, { c with lines = l :: c.lines }, nb + 1)
+;;
+
+let end_current_comment ol c nb hash =
+  Comments
+    ( { header_line_number = c.header_line_number
+      ; footer_line_number = nb
+      ; hash
+      ; lines = List.rev c.lines
+      }
+      :: ol
+    , nb + 1 )
+;;
+
+let start_comment ol nb =
+  Lines
+    ( ol
+    , { lines = []; header_line_number = nb; footer_line_number = nb; hash = "" }
+    , nb + 1 )
+;;
+
+let skip_uncommented_line l nb = Comments (l, nb + 1)
 
 let scan_ocomments (settings : ocomment_settings) (lines : string list) : ocomment list =
   let scan =
@@ -40,19 +64,13 @@ let scan_ocomments (settings : ocomment_settings) (lines : string list) : ocomme
         match acc, line with
         | Comments (l, nb), header
           when String.starts_with ~prefix:settings.start_prefix (String.trim header) ->
-          Lines (l, [], nb + 1)
-        | Comments (l, nb), _ -> Comments (l, nb + 1)
-        | Lines (ol, ll, nb), footer
+          start_comment l nb
+        | Comments (l, nb), _ -> skip_uncommented_line l nb
+        | Lines (ol, c, nb), footer
           when String.starts_with ~prefix:settings.end_prefix (String.trim footer) ->
-          Comments
-            ( { header_line_number = 0
-              ; footer_line_number = nb
-              ; hash = hash_of_footer settings.end_prefix footer
-              ; lines = List.rev ll
-              }
-              :: ol
-            , nb + 1 )
-        | Lines (ol, ll, nb), l -> Lines (ol, l :: ll, nb + 1))
+          let hash = hash_of_footer settings.end_prefix footer in
+          end_current_comment ol c nb hash
+        | Lines (ol, c, nb), l -> add_line_to_current_comment ol c nb l)
       (Comments ([], 0))
       lines
   in

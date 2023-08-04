@@ -111,6 +111,26 @@ let example_one_comment_with_hash () =
     (scan_ocomments settings lines)
 ;;
 
+let example_one_comment_starting_mid_file () =
+  let lines =
+    [ "name = 'Bob'"
+    ; "# ocm start"
+    ; "age = 22"
+    ; "# ocm end MD5_STRING"
+    ; "print(name, 'is', age, 'years')"
+    ]
+  and settings = { start_prefix = "# ocm start"; end_prefix = "# ocm end" } in
+  Alcotest.(check (list testable_ocomment))
+    "Expected one ocomment"
+    [ { header_line_number = 1
+      ; footer_line_number = 3
+      ; lines = [ "age = 22" ]
+      ; hash = "MD5_STRING"
+      }
+    ]
+    (scan_ocomments settings lines)
+;;
+
 let () =
   Alcotest.run
     "Ocomment"
@@ -122,6 +142,7 @@ let () =
       , [ "No comment", `Quick, example_no_comments
         ; "One comment no hash", `Quick, example_one_comment_no_hash
         ; "One comment with hash", `Quick, example_one_comment_with_hash
+        ; "Comment starting mid file", `Quick, example_one_comment_starting_mid_file
         ] )
     ]
 ;;
