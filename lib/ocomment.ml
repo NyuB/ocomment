@@ -1,4 +1,4 @@
-type ocomment_settings =
+type markers =
   { start_prefix : string
   ; end_prefix : string
   }
@@ -57,7 +57,7 @@ let start_comment ol nb =
 
 let skip_uncommented_line l nb = Comments (l, nb + 1)
 
-let scan_ocomments (settings : ocomment_settings) (lines : string list) : ocomment list =
+let scan_ocomments (settings : markers) (lines : string list) : ocomment list =
   let scan =
     List.fold_left
       (fun acc line ->
@@ -103,10 +103,11 @@ let correction settings lines =
       | Valid -> ()
       | Invalid { actual; _ } ->
         let current_line = Array.get mutable_corrected_lines o.footer_line_number in
+        let preserved_indent = before current_line settings.end_prefix in
         Array.set
           mutable_corrected_lines
           o.footer_line_number
-          (before current_line settings.end_prefix ^ settings.end_prefix ^ " " ^ actual))
+          (preserved_indent ^ settings.end_prefix ^ " " ^ actual))
     corrections;
   Array.to_list mutable_corrected_lines
 ;;
@@ -114,6 +115,63 @@ let correction settings lines =
 module Test = struct
   let lines_of s = String.split_on_char '\n' s
   let print_lines l = List.iter print_endline l
+
+  let string_of_validation = function
+    | Valid -> "Valid"
+    | Invalid { actual; current } ->
+      Printf.sprintf "Invalid { actual = %s; current = %s }" actual current
+  ;;
+
+  let print_validation validation = print_endline @@ string_of_validation validation
+
+  let%expect_test "empty hash is invalid" =
+    let lines =
+      [ "// sum the lengths of each string in stringList"
+      ; "var i = 0;"
+      ; "for(var s in stringList) {"
+      ; "  i += s.length();"
+      ; "}"
+      ]
+    in
+    print_validation @@ valid_lines lines "";
+    [%expect {| Invalid { actual = 3a68fb7e1e0be4d1b3a5be48769ff71a; current =  } |}]
+  ;;
+
+  let%expect_test "line breaks matter" =
+    let lines_with_breaks =
+      [ "// sum the lengths of each string in stringList"
+      ; "var i = 0;"
+      ; "for(var s in stringList) {"
+      ; "  i += s.length();"
+      ; "}"
+      ]
+    and lines_with_less_breaks =
+      [ "// sum the lengths of each string in stringList"
+      ; "var i = 0;"
+      ; "for(var s in stringList) {"
+      ; "  i += s.length();}"
+      ]
+    in
+    print_validation @@ valid_lines lines_with_breaks "INVALID_HASH";
+    [%expect
+      {| Invalid { actual = 3a68fb7e1e0be4d1b3a5be48769ff71a; current = INVALID_HASH } |}];
+    print_validation @@ valid_lines lines_with_less_breaks "INVALID_HASH";
+    [%expect
+      {| Invalid { actual = 6c7dce90f901aae0eb555819f863c3b0; current = INVALID_HASH } |}]
+  ;;
+
+  let%expect_test "Valid if actual hash == current" =
+    let lines =
+      [ "// sum the lengths of each string in stringList"
+      ; "var i = 0;"
+      ; "for(var s in stringList) {"
+      ; "  i += s.length();"
+      ; "}"
+      ]
+    in
+    print_validation @@ valid_lines lines "3a68fb7e1e0be4d1b3a5be48769ff71a";
+    [%expect {| Valid |}]
+  ;;
 
   let%expect_test _ =
     let lines =
@@ -170,7 +228,8 @@ module Test = struct
       correction { start_prefix = {|""" ocm >>|}; end_prefix = {|# ocm <<|} } lines
     in
     print_lines corrected;
-    [%expect {|
+    [%expect
+      {|
       import sys
 
       def split_commas(s: str) -> 'list[str]':

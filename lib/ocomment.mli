@@ -1,26 +1,16 @@
-type ocomment_settings =
-  { start_prefix : string
-  ; end_prefix : string
-  }
-
 type hash = string
-
-type invalid_hash =
-  { actual : hash
-  ; current : hash
-  }
-
-type validation =
-  | Invalid of invalid_hash
-  | Valid
 
 type ocomment =
   { header_line_number : int
   ; footer_line_number : int
-  ; lines : hash list
+  ; lines : string list
   ; hash : hash
   }
 
-val scan_ocomments : ocomment_settings -> string list -> ocomment list
-val valid_lines : string list -> string -> validation
-val correction : ocomment_settings -> string list -> string list
+type markers =
+  { start_prefix : string
+  ; end_prefix : string
+  }
+
+val scan_ocomments : markers -> string list -> ocomment list
+val correction : markers -> string list -> string list
