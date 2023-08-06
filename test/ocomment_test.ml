@@ -101,7 +101,7 @@ let example_correct_empty_hash () =
     ; "# ocm end 86029270bfcce9da33ac53db637747c0"
     ; "print(name, 'is', age, 'years')"
     ]
-    (correction settings lines)
+    (correct settings lines)
 ;;
 
 let example_correct_wrong_hash () =
@@ -121,7 +121,7 @@ let example_correct_wrong_hash () =
     ; "# ocm end 86029270bfcce9da33ac53db637747c0"
     ; "print(name, 'is', age, 'years')"
     ]
-    (correction settings lines)
+    (correct settings lines)
 ;;
 
 let document_swallow_nested_comment () =

@@ -20,7 +20,7 @@ let () =
   and end_prefix = Sys.argv.(3) in
   print_endline (Printf.sprintf "%s %s %s" filename start_prefix end_prefix);
   let lines = read_file_lines filename in
-  let corrected = Ocomment.correction { start_prefix; end_prefix } lines in
+  let corrected = Ocomment.correct { start_prefix; end_prefix } lines in
   List.iter print_endline corrected
 ;;
 (* #<<

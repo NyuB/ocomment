@@ -93,24 +93,41 @@ let before line prefix =
   String.sub line 0 !index
 ;;
 
-let correction settings lines =
-  let ocomments = scan_ocomments settings lines in
-  let corrections = List.map (fun o -> o, valid_lines o.lines o.hash) ocomments in
-  let mutable_corrected_lines = Array.of_list lines in
+type correction =
+  { original_lines : string list
+  ; to_correct : ocomment list
+  ; markers : markers
+  }
+
+let apply_correction { original_lines; to_correct; markers } : string list =
+  let mutable_corrected_lines = Array.of_list original_lines in
   List.iter
-    (fun (o, v) ->
-      match v with
-      | Valid -> ()
-      | Invalid { actual; _ } ->
-        let current_line = Array.get mutable_corrected_lines o.footer_line_number in
-        let preserved_indent = before current_line settings.end_prefix in
-        Array.set
-          mutable_corrected_lines
-          o.footer_line_number
-          (preserved_indent ^ settings.end_prefix ^ " " ^ actual))
-    corrections;
+    (fun o ->
+      let current_line = Array.get mutable_corrected_lines o.footer_line_number in
+      let preserved_indent = before current_line markers.end_prefix in
+      Array.set
+        mutable_corrected_lines
+        o.footer_line_number
+        (preserved_indent ^ markers.end_prefix ^ " " ^ o.hash))
+    to_correct;
   Array.to_list mutable_corrected_lines
 ;;
+
+let correction markers lines : correction =
+  let ocomments = scan_ocomments markers lines in
+  let validation = List.map (fun o -> o, valid_lines o.lines o.hash) ocomments in
+  let to_correct =
+    List.filter_map
+      (fun (o, v) ->
+        match v with
+        | Valid -> None
+        | Invalid { actual; _ } -> Some { o with hash = actual })
+      validation
+  in
+  { original_lines = lines; to_correct; markers }
+;;
+
+let correct markers lines = correction markers lines |> apply_correction
 
 module Test = struct
   let lines_of s = String.split_on_char '\n' s
@@ -188,7 +205,7 @@ module Test = struct
   |}
     in
     let corrected =
-      correction { start_prefix = "// ocm start"; end_prefix = "// ocm end" } lines
+      correct { start_prefix = "// ocm start"; end_prefix = "// ocm end" } lines
     in
     print_lines corrected;
     [%expect
@@ -225,7 +242,7 @@ module Test = struct
   |}
     in
     let corrected =
-      correction { start_prefix = {|""" ocm >>|}; end_prefix = {|# ocm <<|} } lines
+      correct { start_prefix = {|""" ocm >>|}; end_prefix = {|# ocm <<|} } lines
     in
     print_lines corrected;
     [%expect
