@@ -12,7 +12,11 @@ type markers =
   ; end_prefix : string
   }
 
-type correction
+type correction =
+  { original_lines : string list
+  ; to_correct : ocomment list
+  ; markers : markers
+  }
 
 val scan_ocomments : markers -> string list -> ocomment list
 val correction : markers -> string list -> correction

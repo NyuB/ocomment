@@ -1,3 +1,5 @@
 (tests
- (names ocomment_test)
- (libraries alcotest ocomment))
+ (names app_test core_test)
+ (libraries alcotest ocomment sexplib)
+ (preprocess
+  (pps ppx_expect)))

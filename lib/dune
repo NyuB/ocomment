@@ -1,5 +1,6 @@
 (library
  (name ocomment)
+ (libraries sexplib)
  (inline_tests)
  (preprocess
-  (pps ppx_expect)))
+  (pps ppx_expect ppx_sexp_conv)))

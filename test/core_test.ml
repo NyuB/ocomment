@@ -1,4 +1,4 @@
-open Ocomment
+open Ocomment.Core
 
 let testable_ocomment =
   Alcotest.testable

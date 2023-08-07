@@ -57,18 +57,18 @@ let start_comment ol nb =
 
 let skip_uncommented_line l nb = Comments (l, nb + 1)
 
-let scan_ocomments (settings : markers) (lines : string list) : ocomment list =
+let scan_ocomments (markers : markers) (lines : string list) : ocomment list =
   let scan =
     List.fold_left
       (fun acc line ->
         match acc, line with
         | Comments (l, nb), header
-          when String.starts_with ~prefix:settings.start_prefix (String.trim header) ->
+          when String.starts_with ~prefix:markers.start_prefix (String.trim header) ->
           start_comment l nb
         | Comments (l, nb), _ -> skip_uncommented_line l nb
         | Lines (ol, c, nb), footer
-          when String.starts_with ~prefix:settings.end_prefix (String.trim footer) ->
-          let hash = hash_of_footer settings.end_prefix footer in
+          when String.starts_with ~prefix:markers.end_prefix (String.trim footer) ->
+          let hash = hash_of_footer markers.end_prefix footer in
           end_current_comment ol c nb hash
         | Lines (ol, c, nb), l -> add_line_to_current_comment ol c nb l)
       (Comments ([], 0))
