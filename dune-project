@@ -22,8 +22,11 @@
  (depends 
   (ocaml (>= 5.0))
   dune
-  (alcotest :with_test)
-  (ppx_expect :with_test))
+  sexplib
+  ppx_sexp_conv
+  (alcotest :with-test)
+  (ocamlformat :with-test)
+  (ppx_expect :with-test))
  (tags
   (documentation ci)))
 

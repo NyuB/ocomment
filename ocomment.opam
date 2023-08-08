@@ -12,8 +12,11 @@ bug-reports: "https://github.com/NyuB/ocomment/issues"
 depends: [
   "ocaml" {>= "5.0"}
   "dune" {>= "3.7"}
-  "alcotest" {with_test}
-  "ppx_expect" {with_test}
+  "sexplib"
+  "ppx_sexp_conv"
+  "alcotest" {with-test}
+  "ocamlformat" {with-test}
+  "ppx_expect" {with-test}
   "odoc" {with-doc}
 ]
 build: [

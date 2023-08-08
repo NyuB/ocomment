@@ -1,0 +1,31 @@
+name: CI
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events
+  push:
+    branches: [ "main" ] # For main on push
+  pull_request:
+    branches: [ "main" ] # For pull requests targeting main
+
+  # Allows to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Build docker image with dune and package deps
+      - name: Build Dune Docker Image
+        run: docker build --tag dune:ci --file ci/Dockerfile.ci .
+
+      # Check source code formatting with ocamlformat
+      - name: Format enforcement
+        run: docker run --rm --name dune-ci-fmt -e DUNE_CMD="build @fmt" dune:ci 
+
+      # Run tests and compile all sources
+      - name: Compile & Test
+        run: docker run --rm --name dune-ci-test -e DUNE_CMD="build @runtest @install" dune:ci

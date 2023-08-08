@@ -1,0 +1,11 @@
+FROM ocaml/opam:debian
+
+ENV DUNE_CMD=test
+
+WORKDIR /home/opam/project
+
+COPY --chown=opam:opam . .
+
+RUN opam switch create ./ --deps-only --with-test
+
+CMD ["/bin/bash", "-c", "opam exec --switch ./ --set-switch -- dune ${DUNE_CMD}"]

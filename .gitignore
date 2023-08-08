@@ -1,2 +1,5 @@
 # dune stuff
 _build
+
+# vs code stuff
+.vscode
