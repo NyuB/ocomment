@@ -71,3 +71,19 @@ let check_with_promotion ~settings_file ~files =
     let () = Fs.mkdirp (Filename.dirname promote_file) in
     write_lines promote_file (Core.apply_correction correction))
 ;;
+
+module Test = struct
+  let%expect_test _ =
+    let settings =
+      { promotion_dir = ".promote"
+      ; includes = [ ".java", { start_marker = "// <#"; end_marker = "// #>" } ]
+      }
+    in
+    print_endline (sexp_of_settings settings |> Sexplib.Sexp.to_string_hum);
+    [%expect
+      {|
+    ((promotion_dir .promote)
+     (includes ((.java ((start_marker "// <#") (end_marker "// #>"))))))
+     |}]
+  ;;
+end
