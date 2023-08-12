@@ -29,30 +29,71 @@ let hash_of_footer footer_prefix footer =
   else String.sub footer (prefix_length + 1) (header_length - prefix_length - 1)
 ;;
 
+type lines_scan =
+  { completed : ocomment list
+  ; nested : ocomment list
+  ; current : ocomment
+  ; lines_count : int
+  }
+
 type scan =
-  | Lines of (ocomment list * ocomment * int)
+  | Lines of lines_scan
   | Comments of ocomment list * int
 
-let add_line_to_current_comment ol c nb l =
-  Lines (ol, { c with lines = l :: c.lines }, nb + 1)
-;;
+let add_line_to_comment comment l = { comment with lines = l :: comment.lines }
 
-let end_current_comment ol c nb hash =
-  Comments
-    ( { header_line_number = c.header_line_number
-      ; footer_line_number = nb
-      ; hash
-      ; lines = List.rev c.lines
-      }
-      :: ol
-    , nb + 1 )
-;;
-
-let start_comment ol nb =
+let add_line_to_current_comment { completed; nested; current; lines_count } l =
   Lines
-    ( ol
-    , { lines = []; header_line_number = nb; footer_line_number = nb; hash = "" }
-    , nb + 1 )
+    { completed
+    ; nested
+    ; current = add_line_to_comment current l
+    ; lines_count = lines_count + 1
+    }
+;;
+
+let end_current_comment { completed; nested; current; lines_count } hash =
+  let lines = List.rev current.lines in
+  let inc_lines_count = lines_count + 1 in
+  let completed_comment =
+    { header_line_number = current.header_line_number
+    ; footer_line_number = lines_count
+    ; hash
+    ; lines
+    }
+  in
+  match nested with
+  | [] -> Comments (completed_comment :: completed, inc_lines_count)
+  | outer :: tail ->
+    Lines
+      { completed = completed_comment :: completed
+      ; nested = tail
+      ; current = { outer with lines = List.rev_append lines outer.lines }
+      ; lines_count = inc_lines_count
+      }
+;;
+
+let start_comment completed nb =
+  Lines
+    { completed
+    ; nested = []
+    ; current =
+        { lines = []; header_line_number = nb; footer_line_number = nb; hash = "" }
+    ; lines_count = nb + 1
+    }
+;;
+
+let nest_comment { completed; nested; current; lines_count } =
+  Lines
+    { completed
+    ; nested = current :: nested
+    ; current =
+        { lines = []
+        ; header_line_number = lines_count
+        ; footer_line_number = lines_count
+        ; hash = ""
+        }
+    ; lines_count = lines_count + 1
+    }
 ;;
 
 let skip_uncommented_line l nb = Comments (l, nb + 1)
@@ -62,20 +103,24 @@ let scan_ocomments (markers : markers) (lines : string list) : ocomment list =
     List.fold_left
       (fun acc line ->
         match acc, line with
-        | Comments (l, nb), header
+        | Comments (ol, nb), header
           when String.starts_with ~prefix:markers.start_prefix (String.trim header) ->
-          start_comment l nb
-        | Comments (l, nb), _ -> skip_uncommented_line l nb
-        | Lines (ol, c, nb), footer
+          start_comment ol nb
+        | Comments (ol, nb), _ -> skip_uncommented_line ol nb
+        | Lines lines, header
+          when String.starts_with ~prefix:markers.start_prefix (String.trim header) ->
+          nest_comment lines
+        | Lines lines, footer
           when String.starts_with ~prefix:markers.end_prefix (String.trim footer) ->
           let hash = hash_of_footer markers.end_prefix footer in
-          end_current_comment ol c nb hash
-        | Lines (ol, c, nb), l -> add_line_to_current_comment ol c nb l)
+          end_current_comment lines hash
+        | Lines lines, l -> add_line_to_current_comment lines l)
       (Comments ([], 0))
       lines
   in
+  (* Ignore unclosed portion and take the list of completed Comments *)
   match scan with
-  | Lines (ol, _, _) | Comments (ol, _) -> ol
+  | Lines { completed; _ } | Comments (completed, _) -> completed
 ;;
 
 let valid_lines lines hash =
@@ -234,7 +279,9 @@ module Test = struct
   """
   def main(args: 'list[str]') -> None:
       for a in args:
-          print([e if e != "" else "(...)" for e in split_commas(a)])
+        """ ocm >> nested
+        print([e if e != "" else "(...)" for e in split_commas(a)])
+        # ocm <<
   # ocm <<
   
   if __name__ == "__main__":
@@ -257,8 +304,10 @@ module Test = struct
       """
       def main(args: 'list[str]') -> None:
           for a in args:
-              print([e if e != "" else "(...)" for e in split_commas(a)])
-      # ocm << 0e0dfbf4eca5a8f86fca15f7909b3a24
+            """ ocm >> nested
+            print([e if e != "" else "(...)" for e in split_commas(a)])
+            # ocm << 9fc8c031db466d4a03228a01de4e8426
+      # ocm << 43b9c6337abfcb3e7daaebac0736281b
 
       if __name__ == "__main__":
         main(sys.argv[1:]) |}]
