@@ -1,4 +1,4 @@
-((promotion_dir test/resources/.promote)
+((promotion_dir .promote)
    (includes (
     (.java ((start_marker "// <#") (end_marker "// #>")))
     (.kt ((start_marker "// <#") (end_marker "// #>"))))))

@@ -29,8 +29,9 @@ let () =
   let args = Array.sub Sys.argv 1 (Array.length Sys.argv - 1) in
   if Array.length args < 1
   then (
+    print_endline "Expected a settings file as first argument";
     print_endline help;
-    exit (-1))
+    exit 1)
   else if args.(0) = "--help" || args.(0) = "-h"
   then (
     print_endline help;
