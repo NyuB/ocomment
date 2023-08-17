@@ -1,6 +1,27 @@
 # Ocomment
 File portion checksum enforcer aimed to reduce comments entropy
 
+## Get the binary
+How to obtain the **ocomment** binary
+
+### Build directly from sources (requires opam)
+
+```bash
+opam switch create ./ --deps-only --with-test
+eval $(opam env)
+dune build
+cp -L _build/install/default/bin/ocomment ./ocomment
+```
+
+### Use the CI docker image (requires docker)
+
+```bash
+docker build -t ocm:builder -f ci/Dockerfile.ci .
+docker run --name ocm-builder -e DUNE_CMD=build ocm:builder
+docker cp -L ocm-builder:/home/opam/project/_build/install/default/bin/ocomment ./ocomment
+docker rm ocm-builder
+```
+
 ## Usage
 
 ```bash
@@ -23,6 +44,10 @@ The **promotion_dir** field indicate the folder where to generate corrected file
 The **includes** section is a list of association between extensions and markers. All files passed as argument to the executable matching one of these extensions will be validated using the corresponding markers.
 
 ### Examples :
+
+#### Usage examples in tests
+
+See the [test-bin](test-bin) folder (using [cram tests](https://bitheap.org/cram/)) for some usage examples
 
 #### Validate one file
 
