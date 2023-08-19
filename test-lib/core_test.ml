@@ -197,6 +197,15 @@ let example_correct_nested_comments () =
     (correct settings lines_without_nested)
 ;;
 
+let example_do_not_erase_after_end_marker () =
+  let lines = [ "(* ocm start *)"; "something"; "(* ocm end DEFINITELYNOTAVALIDHASH *)" ]
+  and settings = { start_prefix = "(* ocm start"; end_prefix = "(* ocm end" } in
+  Alcotest.(check (list string))
+    "Expected empty hash correction"
+    [ "(* ocm start *)"; "something"; "(* ocm end 437b930db84b8079c2dd804a71936b5f *)" ]
+    (correct settings lines)
+;;
+
 let () =
   Alcotest.run
     "Ocomment"
@@ -211,6 +220,7 @@ let () =
       , [ "Empty hash", `Quick, example_correct_empty_hash
         ; "Wrong hash", `Quick, example_correct_wrong_hash
         ; "Nested", `Quick, example_correct_nested_comments
+        ; "Do not erase after end marker", `Quick, example_do_not_erase_after_end_marker
         ] )
     ]
 ;;
