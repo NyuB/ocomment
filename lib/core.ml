@@ -37,13 +37,13 @@ type lines_scan =
   }
 
 type scan =
-  | Lines of lines_scan
-  | Comments of ocomment list * int
+  | In_Ocomment of lines_scan
+  | Not_In_Ocomment of ocomment list * int
 
 let add_line_to_comment comment l = { comment with lines = l :: comment.lines }
 
 let add_line_to_current_comment { completed; nested; current; lines_count } l =
-  Lines
+  In_Ocomment
     { completed
     ; nested
     ; current = add_line_to_comment current l
@@ -62,9 +62,9 @@ let end_current_comment { completed; nested; current; lines_count } hash =
     }
   in
   match nested with
-  | [] -> Comments (completed_comment :: completed, inc_lines_count)
+  | [] -> Not_In_Ocomment (completed_comment :: completed, inc_lines_count)
   | outer :: tail ->
-    Lines
+    In_Ocomment
       { completed = completed_comment :: completed
       ; nested = tail
       ; current = { outer with lines = List.rev_append lines outer.lines }
@@ -73,7 +73,7 @@ let end_current_comment { completed; nested; current; lines_count } hash =
 ;;
 
 let start_comment completed nb =
-  Lines
+  In_Ocomment
     { completed
     ; nested = []
     ; current =
@@ -83,7 +83,7 @@ let start_comment completed nb =
 ;;
 
 let nest_comment { completed; nested; current; lines_count } =
-  Lines
+  In_Ocomment
     { completed
     ; nested = current :: nested
     ; current =
@@ -96,31 +96,31 @@ let nest_comment { completed; nested; current; lines_count } =
     }
 ;;
 
-let skip_uncommented_line l nb = Comments (l, nb + 1)
+let skip_uncommented_line l nb = Not_In_Ocomment (l, nb + 1)
 
 let scan_ocomments (markers : markers) (lines : string list) : ocomment list =
   let scan =
     List.fold_left
       (fun acc line ->
         match acc, line with
-        | Comments (ol, nb), header
+        | Not_In_Ocomment (ol, nb), header
           when String.starts_with ~prefix:markers.start_prefix (String.trim header) ->
           start_comment ol nb
-        | Comments (ol, nb), _ -> skip_uncommented_line ol nb
-        | Lines lines, header
+        | Not_In_Ocomment (ol, nb), _ -> skip_uncommented_line ol nb
+        | In_Ocomment lines, header
           when String.starts_with ~prefix:markers.start_prefix (String.trim header) ->
           nest_comment lines
-        | Lines lines, footer
+        | In_Ocomment lines, footer
           when String.starts_with ~prefix:markers.end_prefix (String.trim footer) ->
           let hash = hash_of_footer markers.end_prefix footer in
           end_current_comment lines hash
-        | Lines lines, l -> add_line_to_current_comment lines l)
-      (Comments ([], 0))
+        | In_Ocomment lines, l -> add_line_to_current_comment lines l)
+      (Not_In_Ocomment ([], 0))
       lines
   in
   (* Ignore unclosed portion and take the list of completed Comments *)
   match scan with
-  | Lines { completed; _ } | Comments (completed, _) -> completed
+  | In_Ocomment { completed; _ } | Not_In_Ocomment (completed, _) -> completed
 ;;
 
 let valid_lines lines hash =
