@@ -129,31 +129,33 @@ let valid_lines lines hash =
   if String.equal actual hash then Valid else Invalid { actual; current = hash }
 ;;
 
-let before line prefix =
-  let index = ref 0 in
-  let prefix_len = String.length prefix in
-  while not (String.equal (String.sub line !index prefix_len) prefix) do
-    index := !index + 1
-  done;
-  String.sub line 0 !index
-;;
-
 type correction =
   { original_lines : string list
   ; to_correct : ocomment list
   ; markers : markers
   }
 
+(* Assume [footer] contains [end_prefix] *)
+let apply_footer_correction footer end_prefix hash : string =
+  let regexp_end_prefix = Str.regexp_string end_prefix in
+  let end_line_split = Str.split_delim regexp_end_prefix footer |> Array.of_list in
+  let before = end_line_split.(0)
+  and after = end_line_split.(1) in
+  let after_split =
+    match String.split_on_char ' ' after with
+    | [] -> [ hash ]
+    | "" :: _ :: t | _ :: t -> hash :: t
+  in
+  before ^ end_prefix ^ " " ^ String.concat " " after_split
+;;
+
 let apply_correction { original_lines; to_correct; markers } : string list =
   let mutable_corrected_lines = Array.of_list original_lines in
   List.iter
     (fun o ->
       let current_line = Array.get mutable_corrected_lines o.footer_line_number in
-      let preserved_indent = before current_line markers.end_prefix in
-      Array.set
-        mutable_corrected_lines
-        o.footer_line_number
-        (preserved_indent ^ markers.end_prefix ^ " " ^ o.hash))
+      let corrected = apply_footer_correction current_line markers.end_prefix o.hash in
+      Array.set mutable_corrected_lines o.footer_line_number corrected)
     to_correct;
   Array.to_list mutable_corrected_lines
 ;;
