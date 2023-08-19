@@ -18,14 +18,7 @@ let get_free_temp_name () =
 let with_temp_dir exec =
   let base_path = get_free_temp_name () in
   Sys.mkdir base_path 0o755;
-  try
-    let res = exec base_path in
-    rm base_path;
-    res
-  with
-  | err ->
-    rm base_path;
-    raise err
+  Fun.protect ~finally:(fun () -> rm base_path) (fun () -> exec base_path)
 ;;
 
 let settings_content settings = Sexplib.Sexp.to_string (sexp_of_settings settings)
