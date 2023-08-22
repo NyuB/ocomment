@@ -41,7 +41,7 @@ Tear down
 
 When called with only one of the files
 Then the promotion folder is created with only one promote file
-And the promote files is the file with corrected hash
+And the promote file is the file with corrected hash
   $ ocomment ocomment-settings src/Example.java
   [1]
   $ ls .promote/src

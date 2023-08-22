@@ -27,19 +27,24 @@ let help =
 
 let () =
   let args = Array.sub Sys.argv 1 (Array.length Sys.argv - 1) in
-  if Array.length args < 1
+  let check_only = Array.mem "--check-only" args in
+  let actual_args = Array.to_list args |> List.filter (( <> ) "--check-only") in
+  if List.length actual_args < 1
   then (
     print_endline "Expected a settings file as first argument";
     print_endline help;
     exit 1)
-  else if args.(0) = "--help" || args.(0) = "-h"
+  else if List.hd actual_args = "--help" || List.hd actual_args = "-h"
   then (
     print_endline help;
     exit 0)
   else (
-    let settings_file = args.(0) in
-    let files = Array.sub args 1 (Array.length args - 1) |> Array.to_list in
-    match Ocomment.App.check_with_promotion ~settings_file ~files with
+    let settings_file = List.hd actual_args in
+    let action =
+      if check_only then Ocomment.App.check_only else Ocomment.App.check_with_promotion
+    in
+    let files = List.tl actual_args in
+    match action ~settings_file ~files with
     | Ok n -> exit n
     | Error e -> failwith e)
 ;;

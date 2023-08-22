@@ -55,19 +55,37 @@ let check_with_action ~settings_file ~files action =
           then ()
           else (
             at_least_one_correction := true;
-            let promote_file = Filename.concat settings.promotion_dir (f ^ ".promote") in
-            action promote_file correction))
+            action settings f correction))
         (Option.map core_markers markers_opt))
     files;
   Ok (if !at_least_one_correction then 1 else 0)
 ;;
 
+let format_ocomment_line_range ocm =
+  let open Core in
+  Printf.sprintf
+    "lines (%d <-> %d)"
+    (ocm.header_line_number + 1)
+    (ocm.footer_line_number + 1)
+;;
+
 let check_only ~settings_file ~files =
-  check_with_action ~settings_file ~files (fun _ _ -> ())
+  check_with_action ~settings_file ~files (fun _ f correction ->
+    let ranges =
+      List.map (fun o -> "\t" ^ format_ocomment_line_range o) correction.to_correct
+    in
+    prerr_endline
+      (Printf.sprintf
+         "Invalid ocomment found in file '%s'\n%s"
+         f
+         (String.concat "\n" ranges)))
 ;;
 
 let check_with_promotion ~settings_file ~files =
-  check_with_action ~settings_file ~files (fun promote_file correction ->
+  check_with_action ~settings_file ~files (fun settings invalid_file_name correction ->
+    let promote_file =
+      Filename.concat settings.promotion_dir (invalid_file_name ^ ".promote")
+    in
     let () = Fs.mkdirp (Filename.dirname promote_file) in
     write_lines promote_file (Core.apply_correction correction))
 ;;
