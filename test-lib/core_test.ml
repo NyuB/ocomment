@@ -6,8 +6,8 @@ let testable_ocomment =
       Format.pp_print_string
         pp
         (Printf.sprintf
-           " { header_line_number = %d; footer_line_number = %d; hash = '%s'; lines = [ \
-            %s ] }"
+           " { header_line_number = %d; footer_line_number = %d; hash = \"%s\"; lines = \
+            [ %s ] }"
            o.header_line_number
            o.footer_line_number
            o.hash
@@ -21,6 +21,17 @@ let example_no_comments () =
   Alcotest.(check (list testable_ocomment))
     "Expected empty ocomment list for lines without ocomment"
     []
+    (scan_ocomments settings lines)
+;;
+
+let example_empty_comment () =
+  let start_prefix = "start"
+  and end_prefix = "end" in
+  let lines = [ start_prefix; end_prefix ]
+  and settings = { start_prefix; end_prefix } in
+  Alcotest.(check (list testable_ocomment))
+    "Expected single ocomment with empty hash"
+    [ { header_line_number = 0; footer_line_number = 1; hash = ""; lines = [] } ]
     (scan_ocomments settings lines)
 ;;
 
@@ -247,6 +258,7 @@ let () =
     "Core"
     [ ( "Scan"
       , [ "No comment", `Quick, example_no_comments
+        ; "Empty comment", `Quick, example_empty_comment
         ; "One comment no hash", `Quick, example_one_comment_no_hash
         ; "One comment with hash", `Quick, example_one_comment_with_hash
         ; "Spaces before hash", `Quick, example_one_comment_with_hash_extra_spaces
