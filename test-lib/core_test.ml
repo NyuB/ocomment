@@ -244,7 +244,7 @@ let example_do_not_erase_spaces_in_end_lines () =
 
 let () =
   Alcotest.run
-    "Ocomment"
+    "Core"
     [ ( "Scan"
       , [ "No comment", `Quick, example_no_comments
         ; "One comment no hash", `Quick, example_one_comment_no_hash
