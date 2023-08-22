@@ -21,12 +21,44 @@ type ocomment =
   ; hash : hash
   }
 
-let hash_of_footer footer_prefix footer =
-  let prefix_length = String.length footer_prefix
-  and header_length = String.length footer in
-  if prefix_length >= header_length
-  then ""
-  else String.sub footer (prefix_length + 1) (header_length - prefix_length - 1)
+let space_regexp = Str.regexp "[ \t]+"
+
+let hash_of_footer end_prefix footer =
+  let regexp_end_prefix = Str.regexp_string end_prefix in
+  let after_prefix = List.nth (Str.split_delim regexp_end_prefix footer) 1 in
+  match Str.split space_regexp after_prefix with
+  | [] -> ""
+  | h :: _ -> h
+;;
+
+let concat_delim l =
+  let rec aux acc = function
+    | [] -> List.rev acc
+    | Str.Delim d :: t -> aux (d :: acc) t
+    | Str.Text s :: t -> aux (s :: acc) t
+  in
+  String.concat "" (aux [] l)
+;;
+
+(* Assume [footer] contains [end_prefix] *)
+let apply_footer_correction footer end_prefix hash : string =
+  let regexp_end_prefix = Str.regexp_string end_prefix in
+  match Str.split_delim regexp_end_prefix footer with
+  | before_prefix :: after_prefix :: _ ->
+    let after_split =
+      match Str.full_split space_regexp after_prefix with
+      | [] -> " " ^ hash
+      | Delim d :: [] -> d ^ hash
+      | Delim d :: Text _ :: t -> concat_delim (Str.[ Delim d; Text hash ] @ t)
+      | Text _ :: t -> concat_delim (Str.Text hash :: t)
+      | Delim _ :: Delim _ :: _ ->
+        assert false (* Two consecutive delimiters is impossible *)
+    in
+    before_prefix ^ end_prefix ^ after_split
+  | _ ->
+    raise
+    @@ Invalid_argument
+         (Printf.sprintf "Prefix '%s' not present in '%s'" end_prefix footer)
 ;;
 
 type lines_scan =
@@ -134,20 +166,6 @@ type correction =
   ; to_correct : ocomment list
   ; markers : markers
   }
-
-(* Assume [footer] contains [end_prefix] *)
-let apply_footer_correction footer end_prefix hash : string =
-  let regexp_end_prefix = Str.regexp_string end_prefix in
-  let end_line_split = Str.split_delim regexp_end_prefix footer |> Array.of_list in
-  let before = end_line_split.(0)
-  and after = end_line_split.(1) in
-  let after_split =
-    match String.split_on_char ' ' after with
-    | [] -> [ hash ]
-    | "" :: _ :: t | _ :: t -> hash :: t
-  in
-  before ^ end_prefix ^ " " ^ String.concat " " after_split
-;;
 
 let apply_correction { original_lines; to_correct; markers } : string list =
   let mutable_corrected_lines = Array.of_list original_lines in

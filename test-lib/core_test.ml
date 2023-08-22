@@ -64,6 +64,26 @@ let example_one_comment_with_hash () =
     (scan_ocomments settings lines)
 ;;
 
+let example_one_comment_with_hash_extra_spaces () =
+  let lines =
+    [ "# ocm start"
+    ; "name = 'Bob'"
+    ; "age = 22"
+    ; "# ocm end   \t MD5_STRING"
+    ; "print(name, 'is', age, 'years')"
+    ]
+  and settings = { start_prefix = "# ocm start"; end_prefix = "# ocm end" } in
+  Alcotest.(check (list testable_ocomment))
+    "Expected one ocomment"
+    [ { header_line_number = 0
+      ; footer_line_number = 3
+      ; lines = [ "name = 'Bob'"; "age = 22" ]
+      ; hash = "MD5_STRING"
+      }
+    ]
+    (scan_ocomments settings lines)
+;;
+
 let example_one_comment_starting_mid_file () =
   let lines =
     [ "name = 'Bob'"
@@ -206,6 +226,22 @@ let example_do_not_erase_after_end_marker () =
     (correct settings lines)
 ;;
 
+let example_do_not_erase_spaces_in_end_lines () =
+  let lines =
+    [ "(* ocm start *)"
+    ; "something"
+    ; "(* ocm end      \t DEFINITELYNOTAVALIDHASH      *)"
+    ]
+  and settings = { start_prefix = "(* ocm start"; end_prefix = "(* ocm end" } in
+  Alcotest.(check (list string))
+    "Expected empty hash correction"
+    [ "(* ocm start *)"
+    ; "something"
+    ; "(* ocm end      \t 437b930db84b8079c2dd804a71936b5f      *)"
+    ]
+    (correct settings lines)
+;;
+
 let () =
   Alcotest.run
     "Ocomment"
@@ -213,6 +249,7 @@ let () =
       , [ "No comment", `Quick, example_no_comments
         ; "One comment no hash", `Quick, example_one_comment_no_hash
         ; "One comment with hash", `Quick, example_one_comment_with_hash
+        ; "Spaces before hash", `Quick, example_one_comment_with_hash_extra_spaces
         ; "Comment starting mid file", `Quick, example_one_comment_starting_mid_file
         ; "Nested comments", `Quick, example_nested_comments
         ] )
@@ -221,6 +258,9 @@ let () =
         ; "Wrong hash", `Quick, example_correct_wrong_hash
         ; "Nested", `Quick, example_correct_nested_comments
         ; "Do not erase after end marker", `Quick, example_do_not_erase_after_end_marker
+        ; ( "Do not erase spaces in end lines"
+          , `Quick
+          , example_do_not_erase_spaces_in_end_lines )
         ] )
     ]
 ;;
